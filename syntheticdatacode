@@ -1,0 +1,79 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from tensorflow.keras import layers, models
+
+# Function to create a dataset of colored squares
+def create_dataset(num_samples=1000, image_size=64, square_size=16):
+    images = np.zeros((num_samples, image_size, image_size, 3), dtype=np.float32)
+    
+    for i in range(num_samples):
+        x, y = np.random.randint(0, image_size - square_size, size=2)
+        color = np.random.rand(3)
+        images[i, x:x+square_size, y:y+square_size, :] = color
+
+    return images
+
+# Generate synthetic dataset
+dataset_size = 1000
+dataset = create_dataset(num_samples=dataset_size)
+
+# Display some sample images from the dataset
+plt.figure(figsize=(10, 1))
+for i in range(10):
+    plt.subplot(1, 10, i + 1)
+    plt.imshow(dataset[i])
+    plt.axis('off')
+plt.show()
+
+# Define the Deep Convolutional Inverse Graphics Network
+
+def build_dcign():
+    model = models.Sequential()
+
+    # Encoder
+    model.add(layers.Conv2D(64, (3, 3), activation='relu', padding='same', input_shape=(64, 64, 3)))
+    model.add(layers.MaxPooling2D((2, 2)))
+    model.add(layers.Conv2D(128, (3, 3), activation='relu', padding='same'))
+    model.add(layers.MaxPooling2D((2, 2)))
+    model.add(layers.Conv2D(256, (3, 3), activation='relu', padding='same'))
+    model.add(layers.MaxPooling2D((2, 2)))
+
+    # Decoder
+    model.add(layers.Conv2DTranspose(256, (3, 3), activation='relu', padding='same'))
+    model.add(layers.UpSampling2D((2, 2)))
+    model.add(layers.Conv2DTranspose(128, (3, 3), activation='relu', padding='same'))
+    model.add(layers.UpSampling2D((2, 2)))
+    model.add(layers.Conv2DTranspose(64, (3, 3), activation='relu', padding='same'))
+    model.add(layers.UpSampling2D((2, 2)))
+
+    # Output layer
+    model.add(layers.Conv2DTranspose(3, (3, 3), activation='sigmoid', padding='same'))
+
+    return model
+
+
+# Build the model
+dcign_model = build_dcign()
+
+# Compile the model
+dcign_model.compile(optimizer='adam', loss='mse')
+
+# Train the model
+dcign_model.fit(dataset, dataset, epochs=20, batch_size=32)
+
+# Generate reconstructed images using the trained model
+num_test_images = 5
+test_images = create_dataset(num_samples=num_test_images)
+reconstructed_images = dcign_model.predict(test_images)
+
+# Display original and reconstructed images side by side
+plt.figure(figsize=(num_test_images * 2, 4))
+for i in range(num_test_images):
+    plt.subplot(2, num_test_images, i + 1)
+    plt.imshow(test_images[i])
+    plt.axis('off')
+    plt.subplot(2, num_test_images, i + 1 + num_test_images)
+    plt.imshow(reconstructed_images[i])
+    plt.axis('off')
+plt.show()
